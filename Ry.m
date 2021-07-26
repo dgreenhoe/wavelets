@@ -1,19 +1,13 @@
-printf(" ========================================================= \n");
-printf("| Daniel J. Greenhoe                                         |\n");
-printf("| http://banyan.cm.nctu.edu.tw/~dgreenhoe/wsd/index.html  |\n");
-printf("| Experiments with odd polynomials R(1/2-y)               |\n");
-printf(" ========================================================= \n");
-
-%----------------------------------------------------------
-% References:
-% 
-%    http://banyan.cm.nctu.edu.tw/~dgreenhoe/wsd/index.html
+%==============================================================================
+% Daniel J. Greenhoe
+% Experiments with odd polynomials R(1/2-y) 
 %
+% References:
 %    C. Sidney Burrus, Ramesh A. Gopinath, and Haitao Guo
 %    Introduction to Wavelets and Wavelet Transforms; A Primer
 %    Prentice Hall, 1998
 %    ISBN 0-13-489600-9
-%----------------------------------------------------------
+%==============================================================================
 
 %======================================
 % Initialization
@@ -736,7 +730,7 @@ iterations = 16;                       % number of iterations
 %demo_Dp(16,N,iterations);
 
 %demo_Symmlet_p( 4,N,iterations);
-%demo_Symmlet_p( 8,N,iterations);
+demo_Symmlet_p( 8,N,iterations);
 %demo_Symmlet_p(12,N,iterations);
 %demo_Symmlet_p(16,N,iterations);
 %demo_Ry_p(3);
@@ -745,7 +739,7 @@ iterations = 16;                       % number of iterations
 %demo_pollen4a(pi/2,16,iterations)%
 %demo_pollen4a(pi,16,iterations)%
 %demo_pollen4(0,pi,256,256,iterations)%
-demo_pollen4(0,pi,32,32,iterations)%
+%demo_pollen4(0,pi,32,32,iterations)%
 %function demo_pollen4(a,b,nalpha,N,iterations)
 
 %======================================
