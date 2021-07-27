@@ -43,12 +43,19 @@ function y = upSample(x,L)
 endfunction
 
 %----------------------------------------------------------------------------
-%function: Generate scaling function from scaling filter coefficients h(n)
-%   p = scaling function
-%   h = scaling filter coefficients h(n)
-%   k = number of iterations
-%   d = density = number phi(t) samples per h(n) sample
-%
+% \brief Dilation Operation
+%----------------------------------------------------------------------------
+function y = Dilation(x)
+  y = sqrt(2) * downSample(x, 2);
+endfunction
+
+%----------------------------------------------------------------------------
+% \brief Generate scaling function from scaling coefficients h(n)
+% \params[in]  h: scaling coefficients h(n)
+% \params[in]  k: number of iterations of Dilation Equation
+% \params[in]  d: density = number phi(x) samples per h(n) sample
+% \returns     p: scaling function phi(x)
+% \detailed   Cascade Algorithm: Strang and Nguyen (1996)
 % reference: Burrus page 67
 %    MatLab code:    Appendix C page 258
 %    Key equation:   page 67
@@ -56,20 +63,26 @@ endfunction
 % reference: Rao
 %
 %----------------------------------------------------------------------------
-function p = gen_phi(h,k,d)
-   h = 2*h/sum(h);                  %scale to sqrt(2)*sqrt(2) 
-   m =  length(h)-1;                %
-   p = ones(1,d*m)/m;               %<p,1>=1   ref: Rao p.53
-   hu = upSample(h,d);              %upsample h(n) to match phi(t) density
-   printf('\n');
-   for i = 0:(k-1)                  %iterate
-      printf('%d ',i);
-      fflush(stdout);
-      ph  = conv(hu,p);             %convolve
-      p   = downSample(ph,2);       %downsample
-   endfor  
-   p = p(1:m*d); 
-   printf('\n');
+function phi = gen_phi(h, iterations, density, verbose=1)
+  h = sqrt(2)*h/sum(h);                  % Admissibility Condition: SUM h_n = sqrt(2)
+  span =  length(h)-1                    % support of phi(x)
+  phi = ones(1,density*span)/span;       % initial phi_0 is box with area=1
+  hu = upSample(h,density);              % upsample h(n) to match phi(t) density
+  for i = 0:(iterations-1)               % iterate Dilation Equation k times
+     p0 = phi;                           % store p
+     ph  = conv(hu,phi);                 % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
+     phi = Dilation(ph);                 % Dilation operation
+     errorVect = phi(1:length(p0)) - p0; % 
+     cost = errorVect * errorVect';    
+     if(verbose) printf("%f ", cost); end
+  endfor  
+  phi = phi(1:span*density); 
+  if( verbose==1 )
+    printf('\n');
+    sum_h = sum(h)
+    maxphi=max(phi)
+    minphi=min(phi)
+  end
 endfunction
 
 %----------------------------------------------------------------------------
@@ -161,7 +174,7 @@ function QQ = y2sin2(P)
    q=1;                                % init q(z)       = 1
    for k=0:n-1                         % 
      QQ = [QQ,0](2:N+1);               % z[-z + 2 -1/z] = -z^2 + 2z - 1
-     QQ = QQ + \                       % Q(z)Q(1/z) 
+     QQ = QQ + ...                     % Q(z)Q(1/z) 
        P(n-k)*[zeros(1,N-2*k-1),q]/4^k;%   = SUM p1k_k*[(-z+2-z^-1)/4]^k
      q = conv(q,[-1 2 -1]);            % q(z) = q(z)[-z^2 + 2z - 1]
    endfor                              % 
@@ -434,7 +447,7 @@ endfunction
 #    Burrus page  66
 #----------------------------------------------------------------------------
 function h = gen_pollen4(alpha)
-  h =  (sqrt(2)/4) * [\
+  h =  (sqrt(2)/4) * [...
        1 + cos(alpha) - sin(alpha) ;
        1 + cos(alpha) + sin(alpha) ;
        1 - cos(alpha) + sin(alpha) ;
@@ -720,7 +733,7 @@ endfunction
                                        % parameters
                                        %-------------------------------------
 N = 1024;                              % number of data points
-iterations = 16;                       % number of iterations
+iterations = 100;                       % number of iterations
 
                                        % demos
                                        %-------------------------------------
@@ -729,8 +742,8 @@ iterations = 16;                       % number of iterations
 %endfor
 %demo_Dp(16,N,iterations);
 
-%demo_Symmlet_p( 4,N,iterations);
-demo_Symmlet_p( 8,N,iterations);
+demo_Symmlet_p( 4,N,iterations);
+%demo_Symmlet_p( 8,N,iterations);
 %demo_Symmlet_p(12,N,iterations);
 %demo_Symmlet_p(16,N,iterations);
 %demo_Ry_p(3);
@@ -742,6 +755,9 @@ demo_Symmlet_p( 8,N,iterations);
 %demo_pollen4(0,pi,32,32,iterations)%
 %function demo_pollen4(a,b,nalpha,N,iterations)
 
+%h = [1 3 3 1]%
+%phi = gen_phi(h,3,4)
+%plot(phi)
 %======================================
 % End Processing
 %======================================
