@@ -1,6 +1,6 @@
 %==============================================================================
 % Daniel J. Greenhoe
-% Experiments with odd polynomials R(1/2-y) 
+% Experiments with odd polynomials R(1/2-y)
 %
 % References:
 %    C. Sidney Burrus, Ramesh A. Gopinath, and Haitao Guo
@@ -44,78 +44,81 @@ endfunction
 
 %----------------------------------------------------------------------------
 % \brief Dilation Operation
+% \details The dilation operator D on a function f(x) is defined as
+%          D f(x) = sqrt(2) f(2x) .
+%          The sqrt(2) factor makes D unitary.
 %----------------------------------------------------------------------------
 function y = Dilation(x)
   y = sqrt(2) * downSample(x, 2);
 endfunction
 
 %----------------------------------------------------------------------------
-% \brief Generate scaling function from scaling coefficients h(n)
-% \params[in]  h: scaling coefficients h(n)
-% \params[in]  k: number of iterations of Dilation Equation
-% \params[in]  d: density = number phi(x) samples per h(n) sample
-% \returns     p: scaling function phi(x)
+% \brief Generate scaling function phi(x) from scaling coefficients h(n)
+% \params[in]  h:          scaling coefficients h(n)
+% \params[in]  iterations: number of iterations of Dilation Equation
+% \params[in]  density:    number phi(x) samples per h(n) sample
+% \returns     phi:        scaling function phi(x)
 % \detailed   Cascade Algorithm: Strang and Nguyen (1996)
 % reference: Burrus page 67
-%    MatLab code:    Appendix C page 258
-%    Key equation:   page 67
-% 
 % reference: Rao
-%
 %----------------------------------------------------------------------------
 function phi = gen_phi(h, iterations, density, verbose=1)
   h = sqrt(2)*h/sum(h);                  % Admissibility Condition: SUM h_n = sqrt(2)
-  span =  length(h)-1                    % support of phi(x)
+  span =  length(h)-1                    % support of phi(x) = span of h(n)
   phi = ones(1,density*span)/span;       % initial phi_0 is box with area=1
-  hu = upSample(h,density);              % upsample h(n) to match phi(t) density
+  hu = upSample(h,density);              % upsample h(n) to match phi(x) density
   for i = 0:(iterations-1)               % iterate Dilation Equation k times
-     p0 = phi;                           % store p
-     ph  = conv(hu,phi);                 % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
+     p0  = phi;                          % store p
+     ph  = conv(hu, phi);                % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
      phi = Dilation(ph);                 % Dilation operation
-     errorVect = phi(1:length(p0)) - p0; % 
-     cost = errorVect * errorVect';    
+     errorVect = phi(1:length(p0)) - p0; %
+     cost = errorVect * errorVect';
      if(verbose) printf("%f ", cost); end
-  endfor  
-  phi = phi(1:span*density); 
+  endfor
+  phi = phi(1:span*density);
   if( verbose==1 )
     printf('\n');
-    sum_h = sum(h)
-    maxphi=max(phi)
-    minphi=min(phi)
+    sum_h  = sum(h)
+    maxphi = max(phi)
+    minphi = min(phi)
   end
 endfunction
 
 %----------------------------------------------------------------------------
-%function: Generate wavelet function psi(t) from scaling function phi(t) 
-%          and wavelet filter coefficients g(n)
-%   phi = scaling function phi(t)
-%   g = wavelet filter coefficients g(n)
-%   d = density = number phi(t) samples per g(n) sample
-% reference: Burrus page 15
-% 
+% \brief Generate wavelet function psi(x) from scaling function phi(x)
+%        and wavelet filter coefficients g(n)
+% \params[in] phi = scaling function phi(x)
+% \params[in] g = wavelet filter coefficients g(n)
+% \params[in] density = number phi(t) samples per g(n) sample
+% \returns wavelet function psi(x)
+% \reference: Burrus page 15
 %----------------------------------------------------------------------------
-function psi = gen_psi(phi,g,d)
-   g   = sqrt(2)*g;                  %scale to sqrt(2)*sqrt(2) 
-   gu  = upSample(g,d);              %upsample h(n) to match phi(t) density
-   pg  = conv(gu,phi);               %convolve
-   psi = downSample(pg,2);           %downsample
-   m =  length(g)-1;                 %
-   psi = psi(1:m*d);                 %truncate
+function psi = gen_psi(phi, g, density, verbose=1)
+   span =  length(g)-1;          % support of psi(x) = span of g(n)
+   gu   = upSample(g, density);  % upsample g(n) to match psi(x) density
+   pg   = conv(gu, phi);         % psi(x) = SUM g(n) phi(2x-n)
+   psi  = Dilation(pg);          % Dilation
+   psi  = psi(1:(span*density)); % truncate
+  if( verbose==1 )
+    sum_g  = sum(g)
+    maxpsi = max(psi)
+    minpsi = min(psi)
+  end
 endfunction
 
 %----------------------------------------------------------------------------
 %function: Generate wavelet coefficients g(n) from scaling coefficients h(n)
-%  references: 
+%  references:
 %     Mallat page 238
 %     Burrus page  15
 %     Burrus page  79
 %----------------------------------------------------------------------------
 function g = h2g_coefs(h)
-   g = h;
-   N = length(h);
-   for n=0:(N-1)  
-      g(n +1) = (-1)**(n)*h(N-1-n +1);  
-   endfor
+  g = h;
+  N = length(h);
+  for n=0:(N-1)
+     g(n +1) = (-1)**(n)*h(N-1-n +1);
+  endfor
 endfunction
 
 %----------------------------------------------------------------------------
@@ -144,40 +147,40 @@ endfunction
 %
 % Input
 % ------
-%  P = [p_{n-1} ... p_2 p_1 p_0] 
+%  P = [p_{n-1} ... p_2 p_1 p_0]
 %    ==> P(y)=p_{n-1}y^{m-1}+...+p_2 y^2+p_1y+p_0
-% 
+%
 % Output
 % ------
 %  QQ = [q_{2n-2} ... q_2 q_1 q_0]
-%  
+%
 %                     q_{2n-2}z^{2n-2} +...+ q_2 z^2 + r_1 z + r_0
 %     ==>  Q(z)Q(1/z)=---------------------------------------------
 %                                       z^n
-%  
+%
 % Theory
 % ------
 % This conversion is useful when using polynomials in y = sin^2(w/2).
-% Polynomials in sin^2(w/2) can be used to represent any even 
+% Polynomials in sin^2(w/2) can be used to represent any even
 % periodic funtion with period 2pi.
 %   * sin^2(w/2) = (1/2)(1-cosw)
 %
 %                   1-cosw     1     e^{w}+e^{-w}     2 - z - 1/z   |
 % y = sin^2(w/2) = -------- = --- - -------------- = -------------- |
 %                      2       2          4                 4       |z=e^w
-%   
+%
 %----------------------------------------------------------------------------
 function QQ = y2sin2(P)
    n=length(P);                        % number of terms in P(y). num 0s=n-1
    N=2*n-1;                            % number of terms in Q(z)Q(1/z)
    QQ= zeros(1,N);                     % init Q(z)Q(1/z) = 0+0z+...+0z^{N-1}
    q=1;                                % init q(z)       = 1
-   for k=0:n-1                         % 
+   for k=0:n-1                         %
      QQ = [QQ,0](2:N+1);               % z[-z + 2 -1/z] = -z^2 + 2z - 1
-     QQ = QQ + ...                     % Q(z)Q(1/z) 
+     QQ = QQ + ...                     % Q(z)Q(1/z)
        P(n-k)*[zeros(1,N-2*k-1),q]/4^k;%   = SUM p1k_k*[(-z+2-z^-1)/4]^k
      q = conv(q,[-1 2 -1]);            % q(z) = q(z)[-z^2 + 2z - 1]
-   endfor                              % 
+   endfor                              %
 endfunction
 
 %----------------------------------------------------------------------------
@@ -194,13 +197,13 @@ endfunction
 %  Output
 %  ------
 %  n  = p + m
-%  
+%
 %  QQ = [q_{2n-1} ... q_1 q_0]
-%  
+%
 %                    q_{2n-1}z^{2n-1}+...+r_2 z^2+r_1z+r_0
 %    ==>  Q(z)Q(1/z)=--------------------------------------
 %                                  z^n
-%  
+%
 %  rQQ= [ r_1 r_2 ... r_{n-1}  r_n r_{n+1}...r_{n-2} ]
 %        |<--roots inside -->|<--roots outside  --->|
 %        |   unit circle     |   unit circle        |
@@ -210,10 +213,10 @@ endfunction
 %                       (z+1)^p
 %    ==>  A(z) = sqrt(2)(---)   = a_pz^p + ... + a_2z^2 + a_1z + a_0
 %                       ( 2 )
-%  
+%
 %  rA = [ r_1 r_2 ... r_p ] = roots of A(z)
 %
-%  
+%
 %  Theory
 %  ------
 %  h(n) = scaling coefficients
@@ -225,7 +228,7 @@ endfunction
 %                (z+1)^p
 %       = sqrt(2)(---)   Q(z)
 %                ( 2 )
-%  
+%
 %  Finding Q(z) involves factoring a polynomial P(...):
 %
 %  P(y) = Pm(y) + y^p R(1/2-y)
@@ -234,10 +237,10 @@ endfunction
 %    (R is an odd polynomial about y=1/2)
 %  For Daubechies-p wavelets and symmlets, R(y)=0
 %    (giving Daubechies-p and symmlets minimum support)
-%   
-%          p-1 ( p-1+k )                  
-%  Pm(y) = SUM (       ) y^k  
-%          k=0 (   k   )                  
+%
+%          p-1 ( p-1+k )
+%  Pm(y) = SUM (       ) y^k
+%          k=0 (   k   )
 %
 %  Q(z)Q(1/z) = P([2-z-1/z]/4)
 %----------------------------------------------------------------------------
@@ -245,27 +248,27 @@ function [n,A,QQ,rA,rQQ] = gen_Dclass(p,R)
                                        % Compute A(z) = sqrt(2)[ (z+1)/2 ]^p
                                        % ------------------------------------
    A=1;                                % A(z) = (z+1)^0 = 1
-   for k=1:p                           % 
+   for k=1:p                           %
      A=conv(A,[1 1]);                  % A(z) = (z+1)^k  k=1,2,3,...,p
-   endfor                              % 
+   endfor                              %
    A = (sqrt(2)/2^p)*A;                % A(z) = sqrt(2)[(z+1)/2]^p
    rA = sort(roots(A))';               % rA   = roots of A(z)
 
                                        % Pm(y)
                                        % ------------------------------------
    Pm = zeros(1,p);                    % init Pm(y) = 0y^{p-1}+...+0y^2+0y+0
-   for k=0:p-1                         % 
+   for k=0:p-1                         %
      Pm(p-k) = bincoeff(p-1+k,k);      % Pm(y) = SUM {p-1+k choose k} y^k
-   endfor                              % 
+   endfor                              %
 
                                        % P( [2-z-1/z]/4 )
                                        % ------------------------------------
-   m=length(R);                        % 
+   m=length(R);                        %
    P=[zeros(1,m),Pm] + [R,zeros(1,p)]; % P(y) = Pm(y) + y^p R(y)
    while P(1)==0                       % remove leading zero coefficient terms
      n=length(P);                      %   n = number of terms in P(y)
      P=P(2:n);                         %   remove leading zero coefficient
-   endwhile                            % 
+   endwhile                            %
    n=length(P);                        % number of terms in P(y). num 0s=n-1
    QQ = y2sin2(P);                     % Q(z)Q(1/z) = P(y)|_y={(-z+2-1/z)/4}
 
@@ -273,7 +276,7 @@ function [n,A,QQ,rA,rQQ] = gen_Dclass(p,R)
                                        % ------------------------------------
    rQQ = sort(roots(QQ))';             % roots of Q(z)Q(1/z) (p-1 roots of Q(z), p-1 roots of Q(1/z))
    rQ  = rQQ(1:n-1);                   % roots of Q(z) (p-1 roots inside unit circle)
-   Q   = poly(rQ);                     % convert roots into poly Q(z) 
+   Q   = poly(rQ);                     % convert roots into poly Q(z)
    Q   = sign(real(Q)).*abs(Q);        % eliminate any extraneous imag. components
    H   = conv(A,Q);                    % H(z) = A(z)Q(z)
    rH  = sort(roots(H))';              % roots of H(z)
@@ -291,12 +294,12 @@ endfunction
 %  ------
 %  n  = p + m
 %  h:   scaling coefficients
-%  rQQ: roots of Q(z)Q(z^-1) 
+%  rQQ: roots of Q(z)Q(z^-1)
 %                |   |_______ p-1 roots outside unit circle
 %                |___________ p-1 roots inside  unit circle
 %  rH:  roots of H(z)         p roots at z=-1 and p-1 roots of Q(z)
 %
-%  
+%
 %  Theory
 %  ------
 %  h(n) = scaling coefficients
@@ -308,13 +311,13 @@ endfunction
 %                (z+1)^p
 %       = sqrt(2)(---)   Q(z)
 %                ( 2 )
-%  
+%
 %----------------------------------------------------------------------------
 function [h,rQQ,rH] = gen_Dp(p)
   R = [0];                            % for Daubechies-p, R(y)=0
-  [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);  % 
+  [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);  %
   rQ  = rQQ(1:p-1);                   % roots of Q(z) (p-1 roots inside unit circle)
-  Q   = poly(rQ);                     % convert roots into poly Q(z) 
+  Q   = poly(rQ);                     % convert roots into poly Q(z)
   Q   = sign(real(Q)).*abs(Q);        % eliminate any extraneous imag. components
   H   = conv(A,Q);                    % H(z) = A(z)Q(z)
   rH  = sort(roots(H))';              % roots of H(z)
@@ -331,7 +334,7 @@ endfunction
 %  Output
 %  ------
 %  h:   scaling coefficients
-%  rQQ: roots of Q(z)Q(z^-1) 
+%  rQQ: roots of Q(z)Q(z^-1)
 %                |   |_______ p-1 roots outside unit circle
 %                |___________ p-1 roots inside  unit circle
 %  rH:  roots of H(z)         p roots at z=-1 and p-1 roots of Q(z)
@@ -348,22 +351,22 @@ function [h,rQQ,rH] = gen_Sp(p)
   rQQ_mat    = zeros(p-1,Nsol);        % allocate matrix of roots for all solutions
   mse       = zeros(1,  Nsol);         % allocate mean square error of each solution
   sqMag     = zeros(1,  Nsol);         % allocate square magnitude of each solution
-                                       
+
                                        % Main loop: generate all root selections
                                        % ---------------------------------------
   for n=0:Nsol-1                       % loop once for each possible solution
     t = conj(rQQ(1:2:p-1));            % extract one representative from each quad
     for m=0:Nquads-1                   % take conjugate recipricols of roots
-      if( mod(floor(n/2^m),2) )        % if bit k of n is 1, 
+      if( mod(floor(n/2^m),2) )        % if bit k of n is 1,
         t(m+1) = conj(1/t(m+1));       %   then take conjugate recipricol of root
-      endif                            % 
+      endif                            %
     endfor                             %
-                                       
+
     rNew          = zeros(p-1,1);      % initialize new root column vector
     rNew(1:2:p-1) = t;                 % rNew=[r1 (real), r2, r2*, r3, r3*,...]'
     rNew(2:2:p-1) = conj(t(mod(p+1,2)+1:Nquads));
     rMat(:,n+1)   = rNew;              % store new root vector in root matrix
-                                       
+
                                        % Linear phase measurements
                                        % ------------------------------
     h = real(poly(rNew));              % convert new roots into a poly in z
@@ -372,7 +375,7 @@ function [h,rQQ,rH] = gen_Sp(p)
     [pCoefs,pVals]=polyfit(w,phase,1); % find the 1st order poly p(w) that best fits phase(w)
     mse(n+1) = (pVals.yf-phase)'*(pVals.yf-phase)/N;  % measure the error
     sqMag(n+1) = (rNew'*rNew);         % measure the magnitude and store
-  endfor                               
+  endfor
                                        % Find best set of roots
                                        % --------------------------
   [err1,i1] = min(mse);                % find the 1st location of minimum error
@@ -382,7 +385,7 @@ function [h,rQQ,rH] = gen_Sp(p)
   t= max(mse)*ones(1,Nsol);            % set t to all large values
   if( sqMag(i1)<sqMag(i2) )            % decide which min to use based on smaller magnitude
     iMinErr = i1;                      %   if the magnitude of first is smaller
-  else                                 %   
+  else                                 %
     iMinErr = i2;                      %   if the magnitude of the second is smaller
   endif                                %
   mmse = mse(iMinErr);                 % minimum mean square error
@@ -390,9 +393,9 @@ function [h,rQQ,rH] = gen_Sp(p)
 
                                        % Compute H(z)=A(z)Q(z)
                                        % ------------------------------------
-  rQQ = [rNew; conj(1./rNew)]';        % vector w/ both retained and discarded roots 
+  rQQ = [rNew; conj(1./rNew)]';        % vector w/ both retained and discarded roots
   rQ  = rQQ(1:p-1);                    % roots of Q(z) (p-1 roots inside unit circle)
-  Q   = poly(rQ);                      % convert roots into poly Q(z) 
+  Q   = poly(rQ);                      % convert roots into poly Q(z)
   Q   = sign(real(Q)).*abs(Q);         % eliminate any extraneous imag. components
   H   = conv(A,Q);                     % H(z) = A(z)Q(z)
   rH  = sort(roots(H))';               % roots of H(z)
@@ -410,12 +413,12 @@ endfunction
 %  Output
 %  ------
 %  h:   scaling coefficients
-%  rQQ: roots of Q(z)Q(z^-1) 
+%  rQQ: roots of Q(z)Q(z^-1)
 %                |   |_______ p-1 roots outside unit circle
 %                |___________ p-1 roots inside  unit circle
 %  rH:  roots of H(z)         p roots at z=-1 and p-1 roots of Q(z)
 %
-%  
+%
 %  Theory
 %  ------
 %  h(n) = scaling coefficients
@@ -427,12 +430,12 @@ endfunction
 %                (z+1)^p
 %       = sqrt(2)(---)   Q(z)
 %                ( 2 )
-%  
+%
 %----------------------------------------------------------------------------
 function [n,h,rQQ,rH] = gen_Rp(p,R)
-  [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);  % 
+  [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);  %
   rQ  = rQQ(1:n-1);                   % roots of Q(z) (n-1 roots inside unit circle)
-  Q   = poly(rQ);                     % convert roots into poly Q(z) 
+  Q   = poly(rQ);                     % convert roots into poly Q(z)
   Q   = sign(real(Q)).*abs(Q);        % eliminate any extraneous imag. components
   H   = conv(A,Q);                    % H(z) = A(z)Q(z)
   rH  = sort(roots(H))';              % roots of H(z)
@@ -474,44 +477,44 @@ function data2file(h,g,rR,rH,filename,comment)
   fprintf(data,'%%========================================================================\n\n');
 
   p=length(h)/2;
-  fprintf(data ,'scaling coefficients\n' ); 
-  fprintf(data ,'-------------------------\n' ); 
+  fprintf(data ,'scaling coefficients\n' );
+  fprintf(data ,'-------------------------\n' );
   for n=1:length(h)
     fprintf(data ,'h_{%02d} = %13.10f  \n',n-1,h(n) );
   endfor
 
-  fprintf(data ,'\n' ); 
-  fprintf(data ,'wavelet coefficients\n'); 
-  fprintf(data ,'-------------------------\n' ); 
+  fprintf(data ,'\n' );
+  fprintf(data ,'wavelet coefficients\n');
+  fprintf(data ,'-------------------------\n' );
   for n=1:length(g)
     fprintf(data ,'g_{%02d} = %13.10f  \n',n-1,g(n) );
   endfor
 
-  fprintf(data ,'\n' ); 
-  fprintf(data ,'roots of Q(z)\n' ); 
-  fprintf(data ,'-------------------------\n' ); 
+  fprintf(data ,'\n' );
+  fprintf(data ,'roots of Q(z)\n' );
+  fprintf(data ,'-------------------------\n' );
   for n=1:p-1
     fprintf(data ,'r_{%02d} = %13.10f  %13.10fi \n',n-1, real(rR(n)), imag(rR(n)) );
   endfor
 
-  fprintf(data ,'\n' ); 
-  fprintf(data ,'roots of Q(z^-1)\n' ); 
-  fprintf(data ,'-------------------------\n'); 
+  fprintf(data ,'\n' );
+  fprintf(data ,'roots of Q(z^-1)\n' );
+  fprintf(data ,'-------------------------\n');
   for n=p:length(rR)
     fprintf(data ,'r_{%02d} = %13.10f  %13.10fi \n',n-1, real(rR(n)), imag(rR(n)) );
   endfor
 
-  fprintf(data ,'\n'); 
-  fprintf(data ,'roots of H(z)\n'); 
-  fprintf(data ,'-------------------------\n'); 
+  fprintf(data ,'\n');
+  fprintf(data ,'roots of H(z)\n');
+  fprintf(data ,'-------------------------\n');
   for n=1:length(rH)
     fprintf(data ,'r_{%02d} = %13.10f  %13.10fi \n',n-1, real(rH(n)), imag(rH(n)) );
     if(n==p-1) fprintf(data,'\n'); endif
   endfor
 
-  fprintf(data ,'\n' ); 
-  fprintf(data ,'LaTeX drawing commands   \n'); 
-  fprintf(data ,'-------------------------\n'); 
+  fprintf(data ,'\n' );
+  fprintf(data ,'LaTeX drawing commands   \n');
+  fprintf(data ,'-------------------------\n');
   for n=1:p-1
     fprintf(data ,'  \\put( %15.10f, %15.10f ) {\\circle {15}} \n',real(rR(n))*100, imag(rR(n))*100 );
   endfor
@@ -550,7 +553,7 @@ function data2plotfile(x,y,filename,comment)
     fprintf(data ,'(%13.10f,%13.10f)\n',x(n),y(n));
   endfor
   fprintf(data,']\n');
-  fprintf(data,'%%---end of file---' ); 
+  fprintf(data,'%%---end of file---' );
   fflush(data);
   fclose(data);
   printf("data written to \'%s\' \n",filename);
@@ -567,8 +570,8 @@ function demo_Dp(p,N,iterations)
   [h,rQQ,rH] = gen_Dp(p);              % Daubechies-p
   g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
   d   = round(N/length(h));            % density=round(samples/unit(1))
-  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n) 
-  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n) 
+  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
+  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
   M   = length(phi);
 
                                        % Generate output data files
@@ -592,8 +595,8 @@ function demo_Symmlet_p(p,N,iterations)
   [h,rQQ,rH] = gen_Sp(p);              % Symmlet-p
   g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
   d   = round(N/length(h));            % density=round(samples/unit(1))
-  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n) 
-  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n) 
+  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
+  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
   M   = length(phi);
 
                                        % Generate output data files
@@ -621,8 +624,8 @@ function demo_Ry_p(p,N,iterations)
   [n,h,rQQ,rH]= gen_Rp(p,R);           % Ry(p)
   g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
   d   = round(N/length(h));            % density=round(samples/unit(1))
-  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n) 
-  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n) 
+  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
+  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
 
                                        % Generate output
                                        % -------------------------
@@ -644,8 +647,8 @@ function demo_pollen4a(alpha,N,iterations)
   h   = gen_pollen4(alpha);     % Pollen length-4
   g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
   d   = round(N/length(h));            % density=round(samples/unit(1))
-  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n) 
-  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n) 
+  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
+  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
   M   = length(phi);
 
                                        % Generate output data files
@@ -680,7 +683,7 @@ function demo_pollen4(a,b,nalpha,N,iterations)
   fprintf(data1,'# The command splot{%s} may be used in a GNU Plot environment for plotting data.\n',filename1);
   fprintf(data1,'# Reference: http://www.gnuplot.info\n');
   fprintf(data1,'#========================================================================\n');
-    
+
   fprintf(data2,'#========================================================================\n');
   fprintf(data2,'# Daniel J. Greenhoe \n');
   fprintf(data2,'# file: %s \n',filename2);
@@ -688,7 +691,7 @@ function demo_pollen4(a,b,nalpha,N,iterations)
   fprintf(data2,'# The command splot{%s} may be used in a GNU Plot environment for plotting data.\n',filename2);
   fprintf(data2,'# Reference: http://www.gnuplot.info\n');
   fprintf(data2,'#========================================================================\n');
-    
+
   for i = 0:nalpha-1
                                        % calculate coefficient sequences
                                        % ------------------------
@@ -696,8 +699,8 @@ function demo_pollen4(a,b,nalpha,N,iterations)
     h   = gen_pollen4(alpha);          % Pollen length-4
     g   = h2g_coefs(h);                % generate wavelet coefficients g(n)
     d   = round(N/length(h));          % density=round(samples/unit(1))
-    phi = gen_phi(h,  iterations,d);   % generate phi(x) from h(n) 
-    psi = gen_psi(phi,g,d);            % generate psi(x) from g(n) 
+    phi = gen_phi(h,  iterations,d);   % generate phi(x) from h(n)
+    psi = gen_psi(phi,g,d);            % generate psi(x) from g(n)
     M   = length(phi);
 
                                        % Generate output data files
@@ -716,8 +719,8 @@ function demo_pollen4(a,b,nalpha,N,iterations)
     fprintf(data2 ,'\n');
 
   endfor
-  fprintf(data1,'##---end of file---' ); 
-  fprintf(data2,'##---end of file---' ); 
+  fprintf(data1,'##---end of file---' );
+  fprintf(data2,'##---end of file---' );
   fflush(data1);
   fflush(data2);
   fclose(data1);
