@@ -78,6 +78,20 @@ function hh = Admissibility(h)
 endfunction
 
 %----------------------------------------------------------------------------
+% \brief Perform Dilation Equation operation
+% \params[in]  x: data sequence
+% \params[in]  h: scaling coefficients h(n)
+%----------------------------------------------------------------------------
+function y = DilationEqu( x, h )
+  span =  length(h)-1;
+  density = length(x) / span;
+  hu = upSample(h,density);              % upsample h(n) to match phi(x) density
+  xh  = conv(hu, x);                     % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
+  Dxh = Dilation(xh);                    % Dilation operation
+  y   = Dxh(1:span*density);
+endfunction
+
+%----------------------------------------------------------------------------
 % \brief Generate scaling function phi(x) from scaling coefficients h(n)
 % \params[in]  h:          scaling coefficients h(n)
 % \params[in]  iterations: number of iterations of Dilation Equation
@@ -91,16 +105,13 @@ function phi = gen_phi(h, iterations, density, verbose=1)
   h = Admissibility(h);                  % Ensure h(n) satisfies Admiss. Cond.
   span =  length(h)-1                    % support of phi(x) = span of h(n)
   phi = ones(1,density*span)/span;       % initial phi_0 is box with area=1
-  hu = upSample(h,density);              % upsample h(n) to match phi(x) density
   for i = 0:(iterations-1)               % iterate Dilation Equation k times
-     p0  = phi;                          % store p
-     ph  = conv(hu, phi);                % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
-     phi = Dilation(ph);                 % Dilation operation
-     errorVect = phi(1:length(p0)) - p0; %
-     cost = errorVect * errorVect';
-     if(verbose) printf("%f ", cost); end
+    p0  = phi;                           % store phi
+    phi = DilationEqu( phi, h );
+    errorVect = phi - p0;
+    cost = errorVect * errorVect';
+    if(verbose) printf("%f ", cost); end
   endfor
-  phi = phi(1:span*density);
   if( verbose==1 )
     printf("\nsum(h)=%f  min(phi)=%f  max(phi)=%f\n", sum(h), min(phi), max(phi));
   end
