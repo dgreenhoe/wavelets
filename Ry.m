@@ -62,10 +62,10 @@ endfunction
 
 %----------------------------------------------------------------------------
 % \brief Make a sequence h(n) satisfy the Admissibility Condition
-% \details A sequence h(n) satisfies the Admissibility Condition 
+% \details A sequence h(n) satisfies the Admissibility Condition
 %          if the sum of the elements of h(n) equals sqrt(2)
 % \params[in] h: sequence
-% \returns 
+% \returns
 %----------------------------------------------------------------------------
 function hh = Admissibility(h)
   sumh = sum(h);
@@ -81,14 +81,15 @@ endfunction
 % \brief Perform Dilation Equation operation
 % \params[in]  x: data sequence
 % \params[in]  h: scaling coefficients h(n)
+% \returns Dilated sequence y
 %----------------------------------------------------------------------------
 function y = DilationEqu( x, h )
-  span =  length(h)-1;
-  density = length(x) / span;
-  hu = upSample(h,density);              % upsample h(n) to match phi(x) density
-  xh  = conv(hu, x);                     % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
-  Dxh = Dilation(xh);                    % Dilation operation
-  y   = Dxh(1:span*density);
+  span    =  length(h)-1;
+  density = length(x) / span;     % number of x elements per h element except last
+  hu      = upSample(h,density);  % upsample h(n) to match phi(x) density
+  xh      = conv(hu, x);          % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
+  Dxh     = Dilation(xh);         % Dilation operation
+  y       = Dxh(1:span*density);
 endfunction
 
 %----------------------------------------------------------------------------
@@ -127,11 +128,11 @@ endfunction
 % \cite Burrus page 15
 %----------------------------------------------------------------------------
 function psi = gen_psi(phi, g, density, verbose=1)
-   span =  length(g)-1;          % support of psi(x) = span of g(n)
-   gu   = upSample(g, density);  % upsample g(n) to match psi(x) density
-   pg   = conv(gu, phi);         % psi(x) = SUM g(n) phi(2x-n)
-   psi  = Dilation(pg);          % Dilation
-   psi  = psi(1:(span*density)); % truncate
+  span =  length(g)-1;          % support of psi(x) = span of g(n)
+  gu   = upSample(g, density);  % upsample g(n) to match psi(x) density
+  pg   = conv(gu, phi);         % psi(x) = SUM g(n) phi(2x-n)
+  psi  = Dilation(pg);          % Dilation
+  psi  = psi(1:(span*density)); % truncate
   if( verbose==1 )
     printf("sum(g)=%f  min(psi)=%f  max(psi)=%f\n", sum(g), min(psi), max(psi));
   end
@@ -161,11 +162,11 @@ endfunction
 %   g(n) = g(-n) with shift by N
 %----------------------------------------------------------------------------
 function hbar = h2hbar(h)
-   hbar = zeros(size(h));              %allocate memory
-   N    = length(h)     ;              %N = length of h(n)
-   for n = 0:(N-1)                     %
-      hbar(n +1) = h(N-1-n +1);        %hbar(n) = h(N-1-n)
-   endfor
+  hbar = zeros(size(h));              %allocate memory
+  N    = length(h)     ;              %N = length of h(n)
+  for n = 0:(N-1)                     %
+     hbar(n +1) = h(N-1-n +1);        %hbar(n) = h(N-1-n)
+  endfor
 endfunction
 
 %----------------------------------------------------------------------------
@@ -648,8 +649,8 @@ endfunction
 function demo_Ry_p(p,N,iterations)
                                        % R(y)
                                        % ------------------------
- R=[  3 0 5 0 7 0 3 0 1 0];                        % R(y)
- ptitle=sprintf("p=%d      R(y)=3y^9 + 5y^7 + 7y^5 + 3y^3 + y      Daniel J. Greenhoe",p);% title
+  R=[  3 0 5 0 7 0 3 0 1 0];                        % R(y)
+  ptitle=sprintf("p=%d      R(y)=3y^9 + 5y^7 + 7y^5 + 3y^3 + y      Daniel J. Greenhoe",p);% title
 
                                        % Generate scaling coefficients {h_n}
                                        % ------------------------
@@ -676,7 +677,7 @@ endfunction
 function demo_pollen4a(alpha,N,iterations)
                                        % calculate coefficient sequences
                                        % ------------------------
-  h   = gen_pollen4(alpha);     % Pollen length-4
+  h   = gen_pollen4(alpha);            % Pollen length-4
   g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
   d   = round(N/length(h));            % density=round(samples/unit(1))
   phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
