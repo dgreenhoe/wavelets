@@ -85,11 +85,23 @@ endfunction
 %----------------------------------------------------------------------------
 function y = DilationEqu( x, h )
   span    =  length(h)-1;
-  density = length(x) / span;     % number of x elements per h element except last
-  hu      = upSample(h,density);  % upsample h(n) to match phi(x) density
-  xh      = conv(hu, x);          % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
-  Dxh     = Dilation(xh);         % Dilation operation
-  y       = Dxh(1:span*density);
+  density = length(x) / span;          % number of x elements per h element except last
+  N       = span * density;            % target length of y
+  hu      = upSample(h,density);       % upsample h(n) to match phi(x) density
+  xh      = conv(hu, x);               % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
+  Dxh     = Dilation(xh);              % Dilation operation
+  y       = Dxh(1:N);                  % truncate to length N
+endfunction
+
+%----------------------------------------------------------------------------
+% \brief Estimate the integral of x
+% \params[in]  x: data sequence
+% \params[in]  density: number of elements per length 1 on x-axis
+% \returns Estimated integral
+%----------------------------------------------------------------------------
+function INTx = Integrate( x, density )
+  dx   = 1 / density;                  % width of Riemann integration bin
+  INTx = sum( x ) * dx                 % estimated integral of phi(x)
 endfunction
 
 %----------------------------------------------------------------------------
@@ -103,18 +115,20 @@ endfunction
 % reference: Rao
 %----------------------------------------------------------------------------
 function phi = gen_phi(h, iterations, density, verbose=1)
-  h = Admissibility(h);                  % Ensure h(n) satisfies Admiss. Cond.
-  span =  length(h)-1                    % support of phi(x) = span of h(n)
-  phi = ones(1,density*span)/span;       % initial phi_0 is box with area=1
-  for i = 0:(iterations-1)               % iterate Dilation Equation k times
-    p0  = phi;                           % store phi
+  h = Admissibility(h);                % Ensure h(n) satisfies Admiss. Cond.
+  span =  length(h)-1                  % support of phi(x) = span of h(n)
+  N    = span * density;               % target length of psi(x)
+  phi = ones(1,density*span)/span;     % initial phi_0 is box with area=1
+  for i = 0:(iterations-1)             % iterate Dilation Equation k times
+    p0  = phi;                         % store phi
     phi = DilationEqu( phi, h );
     errorVect = phi - p0;
     cost = errorVect * errorVect';
     if(verbose) printf("%f ", cost); end
   endfor
+  Iphi = Integrate( phi, density )     % estimated integral of psi(x)
   if( verbose==1 )
-    printf("\nsum(h)=%f  min(phi)=%f  max(phi)=%f\n", sum(h), min(phi), max(phi));
+    printf("\nsum^2(h)=%f  min(phi)=%f  max(phi)=%f  INTphi=%f\n", sum(h)^2, min(phi), max(phi), Iphi);
   end
 endfunction
 
@@ -128,13 +142,12 @@ endfunction
 % \cite Burrus page 15
 %----------------------------------------------------------------------------
 function psi = gen_psi(phi, g, density, verbose=1)
-  span =  length(g)-1;          % support of psi(x) = span of g(n)
-  gu   = upSample(g, density);  % upsample g(n) to match psi(x) density
-  pg   = conv(gu, phi);         % psi(x) = SUM g(n) phi(2x-n)
-  psi  = Dilation(pg);          % Dilation
-  psi  = psi(1:(span*density)); % truncate
+  span = length(g)-1;                  % support of psi(x) = span of g(n)
+  N    = span * density;               % target length of psi(x)
+  psi  = DilationEqu( phi, g );        % psi(x) is a linear combination of phi(x)
+  Ipsi = Integrate( psi, density )     % estimated integral of psi(x)
   if( verbose==1 )
-    printf("sum(g)=%f  min(psi)=%f  max(psi)=%f\n", sum(g), min(psi), max(psi));
+    printf("sum^2(g)=%f  min(psi)=%f  max(psi)=%f  INTpsi=%f\n", sum(g)^2, min(psi), max(psi), Ipsi);
   end
 endfunction
 
@@ -162,10 +175,10 @@ endfunction
 %   g(n) = g(-n) with shift by N
 %----------------------------------------------------------------------------
 function hbar = h2hbar(h)
-  hbar = zeros(size(h));              %allocate memory
-  N    = length(h)     ;              %N = length of h(n)
-  for n = 0:(N-1)                     %
-     hbar(n +1) = h(N-1-n +1);        %hbar(n) = h(N-1-n)
+  hbar = zeros(size(h));               %allocate memory
+  N    = length(h)     ;               %N = length of h(n)
+  for n = 0:(N-1)                      %
+     hbar(n +1) = h(N-1-n +1);         %hbar(n) = h(N-1-n)
   endfor
 endfunction
 
@@ -204,16 +217,16 @@ endfunction
 %
 %----------------------------------------------------------------------------
 function QQ = y2sin2(P)
-  n=length(P);                        % number of terms in P(y). num 0s=n-1
-  N=2*n-1;                            % number of terms in Q(z)Q(1/z)
-  QQ= zeros(1,N);                     % init Q(z)Q(1/z) = 0+0z+...+0z^{N-1}
-  q=1;                                % init q(z)       = 1
-  for k=0:n-1                         %
-    QQ = [QQ,0](2:N+1);               % z[-z + 2 -1/z] = -z^2 + 2z - 1
-    QQ = QQ + ...                     % Q(z)Q(1/z)
-      P(n-k)*[zeros(1,N-2*k-1),q]/4^k;%   = SUM p1k_k*[(-z+2-z^-1)/4]^k
-    q = conv(q,[-1 2 -1]);            % q(z) = q(z)[-z^2 + 2z - 1]
-  endfor                              %
+  n=length(P);                         % number of terms in P(y). num 0s=n-1
+  N=2*n-1;                             % number of terms in Q(z)Q(1/z)
+  QQ= zeros(1,N);                      % init Q(z)Q(1/z) = 0+0z+...+0z^{N-1}
+  q=1;                                 % init q(z)       = 1
+  for k=0:n-1                          %
+    QQ = [QQ,0](2:N+1);                % z[-z + 2 -1/z] = -z^2 + 2z - 1
+    QQ = QQ + ...                      % Q(z)Q(1/z)
+      P(n-k)*[zeros(1,N-2*k-1),q]/4^k; %   = SUM p1k_k*[(-z+2-z^-1)/4]^k
+    q = conv(q,[-1 2 -1]);             % q(z) = q(z)[-z^2 + 2z - 1]
+  endfor                               %
 endfunction
 
 %----------------------------------------------------------------------------
@@ -278,42 +291,42 @@ endfunction
 %  Q(z)Q(1/z) = P([2-z-1/z]/4)
 %----------------------------------------------------------------------------
 function [n,A,QQ,rA,rQQ] = gen_Dclass(p,R)
-                                      % Compute A(z) = sqrt(2)[ (z+1)/2 ]^p
-                                      % ------------------------------------
-  A=1;                                % A(z) = (z+1)^0 = 1
-  for k=1:p                           %
-    A=conv(A,[1 1]);                  % A(z) = (z+1)^k  k=1,2,3,...,p
-  endfor                              %
-  A = (sqrt(2)/2^p)*A;                % A(z) = sqrt(2)[(z+1)/2]^p
-  rA = sort(roots(A))';               % rA   = roots of A(z)
-
-                                      % Pm(y)
-                                      % ------------------------------------
-  Pm = zeros(1,p);                    % init Pm(y) = 0y^{p-1}+...+0y^2+0y+0
-  for k=0:p-1                         %
-    Pm(p-k) = bincoeff(p-1+k,k);      % Pm(y) = SUM {p-1+k choose k} y^k
-  endfor                              %
-
-                                      % P( [2-z-1/z]/4 )
-                                      % ------------------------------------
-  m=length(R);                        %
-  P=[zeros(1,m),Pm] + [R,zeros(1,p)]; % P(y) = Pm(y) + y^p R(y)
-  while P(1)==0                       % remove leading zero coefficient terms
-    n=length(P);                      %   n = number of terms in P(y)
-    P=P(2:n);                         %   remove leading zero coefficient
-  endwhile                            %
-  n=length(P);                        % number of terms in P(y). num 0s=n-1
-  QQ = y2sin2(P);                     % Q(z)Q(1/z) = P(y)|_y={(-z+2-1/z)/4}
-
-                                      % Compute H(z)=A(z)Q(z)
-                                      % ------------------------------------
-  rQQ = sort(roots(QQ))';             % roots of Q(z)Q(1/z) (p-1 roots of Q(z), p-1 roots of Q(1/z))
-  rQ  = rQQ(1:n-1);                   % roots of Q(z) (p-1 roots inside unit circle)
-  Q   = poly(rQ);                     % convert roots into poly Q(z)
-  Q   = sign(real(Q)).*abs(Q);        % eliminate any extraneous imag. components
-  H   = conv(A,Q);                    % H(z) = A(z)Q(z)
-  rH  = sort(roots(H))';              % roots of H(z)
-  h   = Admissibility(H);             % Ensure h(n) satisfies Admiss. Cond.
+                                       % Compute A(z) = sqrt(2)[ (z+1)/2 ]^p
+                                       % ------------------------------------
+  A=1;                                 % A(z) = (z+1)^0 = 1
+  for k=1:p                            %
+    A=conv(A,[1 1]);                   % A(z) = (z+1)^k  k=1,2,3,...,p
+  endfor                               %
+  A = (sqrt(2)/2^p)*A;                 % A(z) = sqrt(2)[(z+1)/2]^p
+  rA = sort(roots(A))';                % rA   = roots of A(z)
+                                       
+                                       % Pm(y)
+                                       % ------------------------------------
+  Pm = zeros(1,p);                     % init Pm(y) = 0y^{p-1}+...+0y^2+0y+0
+  for k=0:p-1                          %
+    Pm(p-k) = bincoeff(p-1+k,k);       % Pm(y) = SUM {p-1+k choose k} y^k
+  endfor                               %
+                                       
+                                       % P( [2-z-1/z]/4 )
+                                       % ------------------------------------
+  m=length(R);                         %
+  P=[zeros(1,m),Pm] + [R,zeros(1,p)];  % P(y) = Pm(y) + y^p R(y)
+  while P(1)==0                        % remove leading zero coefficient terms
+    n=length(P);                       %   n = number of terms in P(y)
+    P=P(2:n);                          %   remove leading zero coefficient
+  endwhile                             %
+  n=length(P);                         % number of terms in P(y). num 0s=n-1
+  QQ = y2sin2(P);                      % Q(z)Q(1/z) = P(y)|_y={(-z+2-1/z)/4}
+                                       
+                                       % Compute H(z)=A(z)Q(z)
+                                       % ------------------------------------
+  rQQ = sort(roots(QQ))';              % roots of Q(z)Q(1/z) (p-1 roots of Q(z), p-1 roots of Q(1/z))
+  rQ  = rQQ(1:n-1);                    % roots of Q(z) (p-1 roots inside unit circle)
+  Q   = poly(rQ);                      % convert roots into poly Q(z)
+  Q   = sign(real(Q)).*abs(Q);         % eliminate any extraneous imag. components
+  H   = conv(A,Q);                     % H(z) = A(z)Q(z)
+  rH  = sort(roots(H))';               % roots of H(z)
+  h   = Admissibility(H);              % Ensure h(n) satisfies Admiss. Cond.
 endfunction
 
 %----------------------------------------------------------------------------
@@ -347,14 +360,14 @@ endfunction
 %
 %----------------------------------------------------------------------------
 function [h,rQQ,rH] = gen_Dp(p)
-  R = [0];                            % for Daubechies-p, R(y)=0
-  [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);  %
-  rQ  = rQQ(1:p-1);                   % roots of Q(z) (p-1 roots inside unit circle)
-  Q   = poly(rQ);                     % convert roots into poly Q(z)
-  Q   = sign(real(Q)).*abs(Q);        % eliminate any extraneous imag. components
-  H   = conv(A,Q);                    % H(z) = A(z)Q(z)
-  rH  = sort(roots(H))';              % roots of H(z)
-  h   = Admissibility(H);             % Ensure h(n) satisfies Admiss. Cond.
+  R = [0];                             % for Daubechies-p, R(y)=0
+  [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);   %
+  rQ  = rQQ(1:p-1);                    % roots of Q(z) (p-1 roots inside unit circle)
+  Q   = poly(rQ);                      % convert roots into poly Q(z)
+  Q   = sign(real(Q)).*abs(Q);         % eliminate any extraneous imag. components
+  H   = conv(A,Q);                     % H(z) = A(z)Q(z)
+  rH  = sort(roots(H))';               % roots of H(z)
+  h   = Admissibility(H);              % Ensure h(n) satisfies Admiss. Cond.
 endfunction
 
 %----------------------------------------------------------------------------
@@ -466,13 +479,13 @@ endfunction
 %
 %----------------------------------------------------------------------------
 function [n,h,rQQ,rH] = gen_Rp(p,R)
-  [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);  %
-  rQ  = rQQ(1:n-1);                   % roots of Q(z) (n-1 roots inside unit circle)
-  Q   = poly(rQ);                     % convert roots into poly Q(z)
-  Q   = sign(real(Q)).*abs(Q);        % eliminate any extraneous imag. components
-  H   = conv(A,Q);                    % H(z) = A(z)Q(z)
-  rH  = sort(roots(H))';              % roots of H(z)
-  h   = Admissibility(H);             % Ensure h(n) satisfies Admiss. Cond.
+  [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);   %
+  rQ  = rQQ(1:n-1);                    % roots of Q(z) (n-1 roots inside unit circle)
+  Q   = poly(rQ);                      % convert roots into poly Q(z)
+  Q   = sign(real(Q)).*abs(Q);         % eliminate any extraneous imag. components
+  H   = conv(A,Q);                     % H(z) = A(z)Q(z)
+  rH  = sort(roots(H))';               % roots of H(z)
+  h   = Admissibility(H);              % Ensure h(n) satisfies Admiss. Cond.
 endfunction
 
 #----------------------------------------------------------------------------
