@@ -635,22 +635,20 @@ endfunction
 %  iterations: number of iterations to use to generate phi(t) (e.g. 16)
 %  N:          data size (e.g. 1024)
 %----------------------------------------------------------------------------
-function demo_Symmlet_p(p,N,iterations)
-                                       % Generate scaling coefficients {h_n}
-                                       % ------------------------
+function demo_Symmlet_p( p, N, iterations, dataDump=0 )
   [h,rQQ,rH] = gen_Sp(p);              % Symmlet-p
-  g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
-  d   = round(N/length(h));            % density=round(samples/unit(1))
-  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
-  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
-  M   = length(phi);
-
-                                       % Generate output data files
-                                       % ------------------------
-  x = [0:length(phi)-1]*(length(h)-1)/(length(phi)-1);
-  data2file(h,g,rQQ,rH, sprintf("s%d.dat",p),    sprintf("Symmlet-%d data file",p));
-  data2plotfile(x,phi,  sprintf('s%d_phi.dat',p),sprintf('plot file for Symmlet-%d scaling function',p));
-  data2plotfile(x,psi,  sprintf('s%d_psi.dat',p),sprintf('plot file for Symmlet-%d wavelet function',p));
+  g       = h2g_coefs(h);              % generate wavelet coefficients g(n)
+  span    = length(h) - 1;             % span of phi(x) and psi(x) = span(h)
+  density = round( N / span );         % density=round(samples/unit(1))
+  phi     = gen_phi(h, iterations, density); % generate phi(x) from h(n)
+  psi     = gen_psi(phi,g,density);    % generate psi(x) from g(n)
+  M       = length(phi);
+  xAxis   = [0:M-1] * span/(M-1);      % x-axis vector from 0 to span
+  if( dataDump )
+    data2file(h,g,rQQ,rH, sprintf("s%d.dat",p),    sprintf("Symmlet-%d data file",p));
+    data2plotfile(xAxis, phi,  sprintf('s%d_phi.dat',p),sprintf('plot file for Symmlet-%d scaling function',p));
+    data2plotfile(xAxis, psi,  sprintf('s%d_psi.dat',p),sprintf('plot file for Symmlet-%d wavelet function',p));
+  end
   plot(x,phi,x,psi);
 endfunction
 
