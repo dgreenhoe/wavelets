@@ -19,6 +19,22 @@ clear;
 %======================================
 
 %----------------------------------------------------------------------------
+% \brief Inner product <x,y> of vectors x and y
+% \params[in] x: vector
+% \params[in] y: vector
+% \returns Inner product <x,y>
+%----------------------------------------------------------------------------
+function inprodxy = inprod( x, y )
+  if( rows(x) == 1 ) xx = x';
+  else               xx = x ;
+  end
+  if( rows(y) == 1 ) yy = y';
+  else               yy = y ;
+  end
+  inprodxy = xx' * yy;
+endfunction
+
+%----------------------------------------------------------------------------
 % \brief Downsample x(n) by L
 % \params[in] x: data sequence
 % \params[in] L: Downsample factor
@@ -49,7 +65,7 @@ function y = upSample( x, L )
 endfunction
 
 %----------------------------------------------------------------------------
-% \brief Dilation Operation
+% \brief Dilation Operation D
 % \details The dilation operator D on a function f(x) is defined as
 %          D f(x) = sqrt(2) f(2x) .
 %          The sqrt(2) factor makes D unitary.
@@ -58,6 +74,18 @@ endfunction
 %----------------------------------------------------------------------------
 function y = Dilation(x)
   y = sqrt(2) * downSample(x, 2);
+endfunction
+
+%----------------------------------------------------------------------------
+% \brief Translation Operation T^n
+% \params[in] x: data sequence with <density> elements per <n>
+% \returns  Translated sequence y
+%----------------------------------------------------------------------------
+function y = Translate(x, density, n)
+  N = length(x);                       % N = length of x
+  M = n * density;                     % M = shift distance
+  y = 0 * x;                           % zero vector with same dimensions as x
+  y( (M+1) : N ) = x( 1 : (N-M) );
 endfunction
 
 %----------------------------------------------------------------------------
@@ -84,10 +112,10 @@ endfunction
 % \returns Dilated sequence y
 %----------------------------------------------------------------------------
 function y = DilationEqu( x, h )
-  span    =  length(h)-1;
-  density = length(x) / span;          % number of x elements per h element except last
-  N       = span * density;            % target length of y
-  hu      = upSample(h,density);       % upsample h(n) to match phi(x) density
+  span    =  length(h)-1;              % support of y(x) = span of h(n)
+  N       = length(x);                 % number of x elements
+  density = N / span;                  % N per h element except last
+  hu      = upSample(h, density);      % upsample h(n) to match phi(x) density
   xh      = conv(hu, x);               % phi_{k+1}(x) = SUM h(n) phi_k(2x-n)
   Dxh     = Dilation(xh);              % Dilation operation
   y       = Dxh(1:N);                  % truncate to length N
@@ -118,26 +146,30 @@ function phi = gen_phi(h, iterations, density, verbose=1)
   h = Admissibility(h);                % Ensure h(n) satisfies Admiss. Cond.
   span =  length(h)-1                  % support of phi(x) = span of h(n)
   N    = span * density;               % target length of psi(x)
-  phi = ones(1,density*span)/span;     % initial phi_0 is box with area=1
+  phi  = ones(1,density*span)/span;    % initial phi_0 is box with area=1
   for i = 0:(iterations-1)             % iterate Dilation Equation k times
     p0  = phi;                         % store phi
     phi = DilationEqu( phi, h );
     errorVect = phi - p0;
     cost = errorVect * errorVect';
-   %if(verbose) printf("%f ", cost); end
   endfor
-  if( verbose==1 )
+  if( verbose )
     Iphi   = Integrate( phi, density );% estimated integral of psi(x)
     sumSq  = sum(h)^2;
     minPhi = min(phi);
     maxPhi = max(phi);
-    printf("psi = gen_psi( phi, g, density=%d, verbose=1 )\n", density );
-    printf("  * sum^2(h) = %12.8f", sumSq );   Test_equal( sumSq  , 2 );
-    printf("  * min(phi) = %12.8f", minPhi );  Test_lt(    minPhi , 0 );
-    printf("  * max(phi) = %12.8f", maxPhi );  Test_gt(    maxPhi , 0 );
-    printf("  * INTphi   = %12.8f", Iphi);     Test_equal( Iphi   , 1 );
-    printf("  * cost     = %12.8f", cost);     Test_equal( cost   , 0 );
-%    printf("\nsum^2(h)=%f  min(phi)=%f  max(phi)=%f  INTphi=%f\n", sum(h)^2, min(phi), max(phi), Iphi);
+    printf("phi = gen_phi( phi, h, iterations=%d, density=%d, verbose=1 )\n", iterations, density );
+    printf("  * sum^2(h)  = %12.8f", sumSq  );  Test_eq( sumSq  , 2 );
+    printf("  * min(phi)  = %12.8f", minPhi );  Test_lt( minPhi , 0 );
+    printf("  * max(phi)  = %12.8f", maxPhi );  Test_gt( maxPhi , 0 );
+    printf("  * INTphi    = %12.8f", Iphi   );  Test_eq( Iphi   , 1 );
+    printf("  * cost      = %12.8f", cost   );  Test_eq( cost   , 0 );
+    for n = 1:span
+      Tn_phi  = Translate(phi, density, n);
+      inprodxy = inprod( phi, Tn_phi );
+      printf("  * <T^0,T^%d> = %12.8f", n, inprodxy);
+      Test_eq( inprodxy, 0, 1e-6 );
+    endfor
   end
 endfunction
 
@@ -160,10 +192,10 @@ function psi = gen_psi(phi, g, density, verbose=1)
     minPsi = min(psi);
     maxPsi = max(psi);
     printf("psi = gen_psi( phi, g, density=%d, verbose=1 )\n", density );
-    printf("  * sum^2(g) = %12.8f", sumSq );   Test_zero( sumSq );
+    printf("  * sum^2(g) = %12.8f", sumSq  );  Test_eq( sumSq , 0 );
     printf("  * min(psi) = %12.8f", minPsi );  Test_lt( minPsi, 0 );
     printf("  * max(psi) = %12.8f", maxPsi );  Test_gt( maxPsi, 0 );
-    printf("  * INTpsi   = %12.8f", Ipsi);     Test_zero( Ipsi );
+    printf("  * INTpsi   = %12.8f", Ipsi   );  Test_eq( Ipsi  , 0 );
   end
 endfunction
 
@@ -315,14 +347,14 @@ function [n,A,QQ,rA,rQQ] = gen_Dclass(p,R)
   endfor                               %
   A = (sqrt(2)/2^p)*A;                 % A(z) = sqrt(2)[(z+1)/2]^p
   rA = sort(roots(A))';                % rA   = roots of A(z)
-                                       
+
                                        % Pm(y)
                                        % ------------------------------------
   Pm = zeros(1,p);                     % init Pm(y) = 0y^{p-1}+...+0y^2+0y+0
   for k=0:p-1                          %
     Pm(p-k) = bincoeff(p-1+k,k);       % Pm(y) = SUM {p-1+k choose k} y^k
   endfor                               %
-                                       
+
                                        % P( [2-z-1/z]/4 )
                                        % ------------------------------------
   m=length(R);                         %
@@ -333,7 +365,7 @@ function [n,A,QQ,rA,rQQ] = gen_Dclass(p,R)
   endwhile                             %
   n=length(P);                         % number of terms in P(y). num 0s=n-1
   QQ = y2sin2(P);                      % Q(z)Q(1/z) = P(y)|_y={(-z+2-1/z)/4}
-                                       
+
                                        % Compute H(z)=A(z)Q(z)
                                        % ------------------------------------
   rQQ = sort(roots(QQ))';              % roots of Q(z)Q(1/z) (p-1 roots of Q(z), p-1 roots of Q(1/z))
@@ -803,7 +835,7 @@ function result = Test_lt( x, y, verbose=1 )
   end
   if( verbose==1 )
     if( result == 1 ) printf("  ok");
-    else              printf("  FAIL!!!");
+    else              printf("  FAIL!!!  %.10f not< %.10f", x, y);
     end
     printf("\n");
   end
@@ -821,16 +853,16 @@ endfunction
 % \brief Test if x almost equals y
 % \returns 1 if TRUE, 0 otherwise
 %----------------------------------------------------------------------------
-function result = Test_equal( x, y, verbose=1 )
-  result = Test_lt( abs(x-y), 1e-9, verbose );
+function result = Test_eq( x, y, margin=1e-9, verbose=1 )
+  result = Test_lt( abs(x-y), margin, verbose );
 endfunction
 
 %----------------------------------------------------------------------------
 % \brief Test if x is close to 0
 % \returns 1 if TRUE, 0 otherwise
 %----------------------------------------------------------------------------
-function result = Test_zero( x, verbose=1 )
-  result = Test_lt( abs(x), 1e-9, verbose );
+function result = Test_zero( x, margin=1e-9, verbose=1 )
+  result = Test_lt( abs(x), margin, verbose );
 endfunction
 
 %======================================
@@ -838,8 +870,8 @@ endfunction
 %======================================
                                        % parameters
                                        %-------------------------------------
-N = 1024;                              % number of data points
-iterations = 100;                       % number of iterations
+N = 2*1024;                            % number of data points
+iterations = 100;                      % number of iterations
 
                                        % demos
                                        %-------------------------------------
@@ -874,3 +906,5 @@ p=4
   phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
   psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
   M   = length(phi);
+  x = [1:100];
+  y = Translate(x, 10, 1);
