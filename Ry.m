@@ -101,7 +101,7 @@ endfunction
 %----------------------------------------------------------------------------
 function INTx = Integrate( x, density )
   dx   = 1 / density;                  % width of Riemann integration bin
-  INTx = sum( x ) * dx                 % estimated integral of phi(x)
+  INTx = sum( x ) * dx;                % estimated integral of phi(x)
 endfunction
 
 %----------------------------------------------------------------------------
@@ -124,11 +124,20 @@ function phi = gen_phi(h, iterations, density, verbose=1)
     phi = DilationEqu( phi, h );
     errorVect = phi - p0;
     cost = errorVect * errorVect';
-    if(verbose) printf("%f ", cost); end
+   %if(verbose) printf("%f ", cost); end
   endfor
-  Iphi = Integrate( phi, density )     % estimated integral of psi(x)
   if( verbose==1 )
-    printf("\nsum^2(h)=%f  min(phi)=%f  max(phi)=%f  INTphi=%f\n", sum(h)^2, min(phi), max(phi), Iphi);
+    Iphi   = Integrate( phi, density );% estimated integral of psi(x)
+    sumSq  = sum(h)^2;
+    minPhi = min(phi);
+    maxPhi = max(phi);
+    printf("psi = gen_psi( phi, g, density=%d, verbose=1 )\n", density );
+    printf("  * sum^2(h) = %12.8f", sumSq );   Test_equal( sumSq  , 2 );
+    printf("  * min(phi) = %12.8f", minPhi );  Test_lt(    minPhi , 0 );
+    printf("  * max(phi) = %12.8f", maxPhi );  Test_gt(    maxPhi , 0 );
+    printf("  * INTphi   = %12.8f", Iphi);     Test_equal( Iphi   , 1 );
+    printf("  * cost     = %12.8f", cost);     Test_equal( cost   , 0 );
+%    printf("\nsum^2(h)=%f  min(phi)=%f  max(phi)=%f  INTphi=%f\n", sum(h)^2, min(phi), max(phi), Iphi);
   end
 endfunction
 
@@ -142,12 +151,19 @@ endfunction
 % \cite Burrus page 15
 %----------------------------------------------------------------------------
 function psi = gen_psi(phi, g, density, verbose=1)
-  span = length(g)-1;                  % support of psi(x) = span of g(n)
-  N    = span * density;               % target length of psi(x)
-  psi  = DilationEqu( phi, g );        % psi(x) is a linear combination of phi(x)
-  Ipsi = Integrate( psi, density )     % estimated integral of psi(x)
-  if( verbose==1 )
-    printf("sum^2(g)=%f  min(psi)=%f  max(psi)=%f  INTpsi=%f\n", sum(g)^2, min(psi), max(psi), Ipsi);
+  span  = length(g)-1;                 % support of psi(x) = span of g(n)
+  N     = span * density;              % target length of psi(x)
+  psi   = DilationEqu( phi, g );       % psi(x) is a linear combination of phi(x)
+  if( verbose )
+    Ipsi   = Integrate( psi, density );% estimated integral of psi(x)
+    sumSq  = sum(g)^2;
+    minPsi = min(psi);
+    maxPsi = max(psi);
+    printf("psi = gen_psi( phi, g, density=%d, verbose=1 )\n", density );
+    printf("  * sum^2(g) = %12.8f", sumSq );   Test_zero( sumSq );
+    printf("  * min(psi) = %12.8f", minPsi );  Test_lt( minPsi, 0 );
+    printf("  * max(psi) = %12.8f", maxPsi );  Test_gt( maxPsi, 0 );
+    printf("  * INTpsi   = %12.8f", Ipsi);     Test_zero( Ipsi );
   end
 endfunction
 
@@ -649,7 +665,7 @@ function demo_Symmlet_p( p, N, iterations, dataDump=0 )
     data2plotfile(xAxis, phi,  sprintf('s%d_phi.dat',p),sprintf('plot file for Symmlet-%d scaling function',p));
     data2plotfile(xAxis, psi,  sprintf('s%d_psi.dat',p),sprintf('plot file for Symmlet-%d wavelet function',p));
   end
-  plot(x,phi,x,psi);
+  plot(xAxis, phi, xAxis, psi );
 endfunction
 
 %----------------------------------------------------------------------------
@@ -775,6 +791,49 @@ function demo_pollen4(a,b,nalpha,N,iterations)
 endfunction
 
 %======================================
+% Test Utilities
+%======================================
+%----------------------------------------------------------------------------
+% \brief Test if x less than y
+% \returns 1 if TRUE, 0 otherwise
+%----------------------------------------------------------------------------
+function result = Test_lt( x, y, verbose=1 )
+  if( x < y ) result = 1;
+  else        result = 0;
+  end
+  if( verbose==1 )
+    if( result == 1 ) printf("  ok");
+    else              printf("  FAIL!!!");
+    end
+    printf("\n");
+  end
+endfunction
+
+%----------------------------------------------------------------------------
+% \brief Test if x greater than y
+% \returns 1 if TRUE, 0 otherwise
+%----------------------------------------------------------------------------
+function result = Test_gt( x, y, verbose=1 )
+  result = Test_lt( y, x, verbose );
+endfunction
+
+%----------------------------------------------------------------------------
+% \brief Test if x almost equals y
+% \returns 1 if TRUE, 0 otherwise
+%----------------------------------------------------------------------------
+function result = Test_equal( x, y, verbose=1 )
+  result = Test_lt( abs(x-y), 1e-9, verbose );
+endfunction
+
+%----------------------------------------------------------------------------
+% \brief Test if x is close to 0
+% \returns 1 if TRUE, 0 otherwise
+%----------------------------------------------------------------------------
+function result = Test_zero( x, verbose=1 )
+  result = Test_lt( abs(x), 1e-9, verbose );
+endfunction
+
+%======================================
 % Main
 %======================================
                                        % parameters
@@ -789,7 +848,7 @@ iterations = 100;                       % number of iterations
 %endfor
 %demo_Dp(16,N,iterations);
 
-demo_Symmlet_p( 4,N,iterations);
+%demo_Symmlet_p( 4,N,iterations);
 %demo_Symmlet_p( 8,N,iterations);
 %demo_Symmlet_p(12,N,iterations);
 %demo_Symmlet_p(16,N,iterations);
@@ -808,3 +867,10 @@ demo_Symmlet_p( 4,N,iterations);
 %======================================
 % End Processing
 %======================================
+p=4
+  [h,rQQ,rH] = gen_Dp(p);              % Daubechies-p
+  g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
+  d   = round(N/length(h));            % density=round(samples/unit(1))
+  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
+  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
+  M   = length(phi);
