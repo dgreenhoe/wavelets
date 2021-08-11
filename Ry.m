@@ -159,15 +159,15 @@ function phi = gen_phi(h, iterations, density, verbose=1)
     minPhi = min(phi);
     maxPhi = max(phi);
     printf("phi = gen_phi( phi, h, iterations=%d, density=%d, verbose=1 )\n", iterations, density );
-    printf("  * sum^2(h)  = %12.8f", sumSq  );  Test_eq( sumSq  , 2 );
-    printf("  * min(phi)  = %12.8f", minPhi );  Test_lt( minPhi , 0 );
-    printf("  * max(phi)  = %12.8f", maxPhi );  Test_gt( maxPhi , 0 );
-    printf("  * INTphi    = %12.8f", Iphi   );  Test_eq( Iphi   , 1 );
-    printf("  * cost      = %12.8f", cost   );  Test_eq( cost   , 0 );
+    printf("  * sum^2(h)      = %12.8f", sumSq  );  Test_eq( sumSq  , 2 );
+    printf("  * min(phi)      = %12.8f", minPhi );  Test_lt( minPhi , 0 );
+    printf("  * max(phi)      = %12.8f", maxPhi );  Test_gt( maxPhi , 0 );
+    printf("  * INTphi        = %12.8f", Iphi   );  Test_eq( Iphi   , 1 );
+    printf("  * cost          = %12.8f", cost   );  Test_eq( cost   , 0 );
     for n = 1:span
-      Tn_phi  = Translate(phi, density, n);
+      Tn_phi   = Translate(phi, density, n);
       inprodxy = inprod( phi, Tn_phi );
-      printf("  * <T^0,T^%d> = %12.8f", n, inprodxy);
+      printf("  * <phi,T^%d phi> = %12.8f", n, inprodxy);
       Test_eq( inprodxy, 0, 1e-6 );
     endfor
   end
@@ -192,10 +192,22 @@ function psi = gen_psi(phi, g, density, verbose=1)
     minPsi = min(psi);
     maxPsi = max(psi);
     printf("psi = gen_psi( phi, g, density=%d, verbose=1 )\n", density );
-    printf("  * sum^2(g) = %12.8f", sumSq  );  Test_eq( sumSq , 0 );
-    printf("  * min(psi) = %12.8f", minPsi );  Test_lt( minPsi, 0 );
-    printf("  * max(psi) = %12.8f", maxPsi );  Test_gt( maxPsi, 0 );
-    printf("  * INTpsi   = %12.8f", Ipsi   );  Test_eq( Ipsi  , 0 );
+    printf("  * sum^2(g)      = %12.8f", sumSq  );  Test_eq( sumSq , 0 );
+    printf("  * min(psi)      = %12.8f", minPsi );  Test_lt( minPsi, 0 );
+    printf("  * max(psi)      = %12.8f", maxPsi );  Test_gt( maxPsi, 0 );
+    printf("  * INTpsi        = %12.8f", Ipsi   );  Test_eq( Ipsi  , 0 );
+    for n = 0:span
+      Tn_psi  = Translate(psi, density, n);
+      inprodxy = inprod( phi, Tn_psi );
+      printf("  * <phi,T^%d psi> = %12.8f", n, inprodxy);
+      Test_eq( inprodxy, 0, 1e-6 );
+    endfor
+    for n = 1:span
+      Tn_psi  = Translate(psi, density, n);
+      inprodxy = inprod( psi, Tn_psi );
+      printf("  * <psi,T^%d psi> = %12.8f", n, inprodxy);
+      Test_eq( inprodxy, 0, 1e-6 );
+    endfor
   end
 endfunction
 
@@ -870,7 +882,7 @@ endfunction
 %======================================
                                        % parameters
                                        %-------------------------------------
-N = 2*1024;                            % number of data points
+N = 8*1024;                            % number of data points
 iterations = 100;                      % number of iterations
 
                                        % demos
