@@ -144,7 +144,7 @@ endfunction
 %----------------------------------------------------------------------------
 function phi = gen_phi(h, iterations, density, verbose=1)
   h = Admissibility(h);                % Ensure h(n) satisfies Admiss. Cond.
-  span =  length(h)-1                  % support of phi(x) = span of h(n)
+  span =  length(h)-1;                 % support of phi(x) = span of h(n)
   N    = span * density;               % target length of psi(x)
   phi  = ones(1,density*span)/span;    % initial phi_0 is box with area=1
   for i = 0:(iterations-1)             % iterate Dilation Equation k times
@@ -168,7 +168,7 @@ function phi = gen_phi(h, iterations, density, verbose=1)
       Tn_phi   = Translate(phi, density, n);
       inprodxy = inprod( phi, Tn_phi );
       printf("  * <phi,T^%d phi> = %12.8f", n, inprodxy);
-      Test_eq( inprodxy, 0, 1e-6 );
+      Test_eq( inprodxy, 0, 1e-5 );
     endfor
   end
 endfunction
@@ -200,13 +200,13 @@ function psi = gen_psi(phi, g, density, verbose=1)
       Tn_psi  = Translate(psi, density, n);
       inprodxy = inprod( phi, Tn_psi );
       printf("  * <phi,T^%d psi> = %12.8f", n, inprodxy);
-      Test_eq( inprodxy, 0, 1e-6 );
+      Test_eq( inprodxy, 0, 1e-5 );
     endfor
     for n = 1:span
       Tn_psi  = Translate(psi, density, n);
       inprodxy = inprod( psi, Tn_psi );
       printf("  * <psi,T^%d psi> = %12.8f", n, inprodxy);
-      Test_eq( inprodxy, 0, 1e-6 );
+      Test_eq( inprodxy, 0, 1e-4 );
     endfor
   end
 endfunction
@@ -219,12 +219,23 @@ endfunction
 % \cite Burrus page  15
 % \cite Burrus page  79
 %----------------------------------------------------------------------------
-function g = h2g_coefs(h)
+function g = h2g_coefs( h, verbose=1 )
   g = h;
   N = length(h);
   for n=0:(N-1)
      g(n +1) = (-1)**(n)*h(N-1-n +1);
   endfor
+  if( verbose )
+    sumSq = sum(g)^2;
+    maxag = max(abs(g));
+    minag = min(abs(g));
+    maxah = max(abs(h));
+    minah = min(abs(h));
+    printf("g = h2g_coefs([h_0, h_1, ..., h_%d])\n", N-1 );
+    printf("  * sum^2(g)      = %12.8f", sumSq );  Test_eq( sumSq  , 0 );
+    printf("  * max(|g|)      = %12.8f", maxag );  Test_eq( maxag  , maxah );
+    printf("  * min(|g|)      = %12.8f", minag );  Test_eq( minag  , minah );
+  end
 endfunction
 
 %----------------------------------------------------------------------------
@@ -419,7 +430,7 @@ endfunction
 %                ( 2 )
 %
 %----------------------------------------------------------------------------
-function [h,rQQ,rH] = gen_Dp(p)
+function [h,rQQ,rH] = gen_Dp(p, verbose=1 )
   R = [0];                             % for Daubechies-p, R(y)=0
   [n,A,QQ,rA,rQQ] = gen_Dclass(p,R);   %
   rQ  = rQQ(1:p-1);                    % roots of Q(z) (p-1 roots inside unit circle)
@@ -428,6 +439,13 @@ function [h,rQQ,rH] = gen_Dp(p)
   H   = conv(A,Q);                     % H(z) = A(z)Q(z)
   rH  = sort(roots(H))';               % roots of H(z)
   h   = Admissibility(H);              % Ensure h(n) satisfies Admiss. Cond.
+  if( verbose )
+    sumSq = sum(h)^2;
+    maxh  = max(h);
+    printf("[h,rQQ,rH] = gen_Dp(p=%d, verbose=1 )\n", p );
+    printf("  * sum^2(h)      = %12.8f", sumSq );  Test_eq( sumSq , 2 );
+    printf("  * max(h)        = %12.8f", maxh  );  Test_gt( maxh  , 0 );
+  end
 endfunction
 
 %----------------------------------------------------------------------------
@@ -446,7 +464,7 @@ endfunction
 %  rH:  roots of H(z)         p roots at z=-1 and p-1 roots of Q(z)
 %
 %----------------------------------------------------------------------------
-function [h,rQQ,rH] = gen_Sp(p)
+function [h,rQQ,rH] = gen_Sp( p, verbose=1 )
                                        % Initialization
                                        % ---------------------
   N = 1024;                            % number of data points for linear measure
@@ -506,6 +524,13 @@ function [h,rQQ,rH] = gen_Sp(p)
   H   = conv(A,Q);                     % H(z) = A(z)Q(z)
   rH  = sort(roots(H))';               % roots of H(z)
   h   = Admissibility(H);              % Ensure h(n) satisfies Admiss. Cond.
+  if( verbose )
+    sumSq = sum(h)^2;
+    maxh  = max(h);
+    printf("[h,rQQ,rH] = gen_Sp(p=%d, verbose=1 )\n", p );
+    printf("  * sum^2(h)      = %12.8f", sumSq );  Test_eq( sumSq , 2 );
+    printf("  * max(h)        = %12.8f", maxh  );  Test_gt( maxh  , 0 );
+  end
 endfunction
 
 %----------------------------------------------------------------------------
@@ -845,11 +870,10 @@ function result = Test_lt( x, y, verbose=1 )
   if( x < y ) result = 1;
   else        result = 0;
   end
-  if( verbose==1 )
-    if( result == 1 ) printf("  ok");
-    else              printf("  FAIL!!!  %.10f not< %.10f", x, y);
+  if( verbose )
+    if( result == 1 ) printf("  ok\n");
+    else              printf("  FAIL!!!  %.10f not< %.10f\n", x, y);
     end
-    printf("\n");
   end
 endfunction
 
@@ -866,7 +890,12 @@ endfunction
 % \returns 1 if TRUE, 0 otherwise
 %----------------------------------------------------------------------------
 function result = Test_eq( x, y, margin=1e-9, verbose=1 )
-  result = Test_lt( abs(x-y), margin, verbose );
+  result = Test_lt( abs(x-y), margin, 0 );
+  if( verbose )
+    if( result == 1 ) printf("  ok\n");
+    else              printf("  FAIL!!!  %.10f != %.10f\n", x, y);
+    end
+  end
 endfunction
 
 %----------------------------------------------------------------------------
@@ -892,7 +921,7 @@ iterations = 100;                      % number of iterations
 %endfor
 %demo_Dp(16,N,iterations);
 
-%demo_Symmlet_p( 4,N,iterations);
+demo_Symmlet_p( 4,N,iterations);
 %demo_Symmlet_p( 8,N,iterations);
 %demo_Symmlet_p(12,N,iterations);
 %demo_Symmlet_p(16,N,iterations);
@@ -912,11 +941,12 @@ iterations = 100;                      % number of iterations
 % End Processing
 %======================================
 p=4
-  [h,rQQ,rH] = gen_Dp(p);              % Daubechies-p
-  g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
-  d   = round(N/length(h));            % density=round(samples/unit(1))
-  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
-  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
-  M   = length(phi);
-  x = [1:100];
-  y = Translate(x, 10, 1);
+%  [h,rQQ,rH] = gen_Dp(p);              % Daubechies-p
+%  [h,rQQ,rH] = gen_Sp(p);              % Symmlets-p
+%  g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
+%  d   = round(N/length(h));            % density=round(samples/unit(1))
+%  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
+%  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
+%  M   = length(phi);
+%  x = [1:100];
+%  y = Translate(x, 10, 1);
