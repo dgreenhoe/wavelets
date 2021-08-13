@@ -93,7 +93,7 @@ endfunction
 % \details A sequence h(n) satisfies the Admissibility Condition
 %          if the sum of the elements of h(n) equals sqrt(2)
 % \params[in] h: sequence
-% \returns
+% \returns Returns a sequence hh that satisfies the Admissibility Condition
 %----------------------------------------------------------------------------
 function hh = Admissibility(h)
   sumh = sum(h);
@@ -218,21 +218,26 @@ endfunction
 % \cite Mallat page 238
 % \cite Burrus page  15
 % \cite Burrus page  79
+% \cite Greenhoe
 %----------------------------------------------------------------------------
 function g = h2g_coefs( h, verbose=1 )
-  g = h;
-  N = length(h);
-  for n=0:(N-1)
-     g(n +1) = (-1)**(n)*h(N-1-n +1);
-  endfor
+  g = 0 * h;                           % make g a zero vector with same dimensions as h
+  N = length(h);                       % N = number of wavelet coefficients
+  g = h2hbar(h);                       % reverse scaling coefficient vector
+  g(2:2:end) = -g(2:2:end);            % alternate signs of vector elements
   if( verbose )
-    sumSq = sum(g)^2;
-    maxag = max(abs(g));
-    minag = min(abs(g));
-    maxah = max(abs(h));
-    minah = min(abs(h));
+    sumSq    = sum(g)^2;
+    maxag    = max(abs(g));
+    minag    = min(abs(g));
+    maxah    = max(abs(h));
+    minah    = min(abs(h));
+    gbar     = h2hbar(g);
+    gAltSgn  = g;
+    gAltSgn(2:2:end) = -g(2:2:end);
+    gCQF     = sum(gAltSgn)^2;        % Conjugate Quaduature Filter condition
     printf("g = h2g_coefs([h_0, h_1, ..., h_%d])\n", N-1 );
     printf("  * sum^2(g)      = %12.8f", sumSq );  Test_eq( sumSq  , 0 );
+    printf("  * sum^2(gAltSgn)= %12.8f", gCQF  );  Test_eq( gCQF   , 2 );
     printf("  * max(|g|)      = %12.8f", maxag );  Test_eq( maxag  , maxah );
     printf("  * min(|g|)      = %12.8f", minag );  Test_eq( minag  , minah );
   end
@@ -245,12 +250,8 @@ endfunction
 %   _
 %   g(n) = g(-n) with shift by N
 %----------------------------------------------------------------------------
-function hbar = h2hbar(h)
-  hbar = zeros(size(h));               %allocate memory
-  N    = length(h)     ;               %N = length of h(n)
-  for n = 0:(N-1)                      %
-     hbar(n +1) = h(N-1-n +1);         %hbar(n) = h(N-1-n)
-  endfor
+function xbar = h2hbar(x)
+  xbar = fliplr(x);
 endfunction
 
 %----------------------------------------------------------------------------
