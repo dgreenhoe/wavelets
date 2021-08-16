@@ -860,6 +860,28 @@ function demo_pollen4(a,b,nalpha,N,iterations)
 
 endfunction
 
+%----------------------------------------------------------------------------
+% Demonstration of Symmlet-p wavelets
+%  iterations: number of iterations to use to generate phi(t) (e.g. 16)
+%  N:          data size (e.g. 1024)
+%----------------------------------------------------------------------------
+function demo_h( h, N, iterations, dataDump=0 )
+  h       = Admissibility(h);          % Ensure h(n) satisfies Admiss. Cond.
+  g       = h2g_coefs(h);              % generate wavelet coefficients g(n)
+  span    = length(h) - 1;             % span of phi(x) and psi(x) = span(h)
+  density = round( N / span );         % density=round(samples/unit(1))
+  phi     = gen_phi(h, iterations, density); % generate phi(x) from h(n)
+  psi     = gen_psi(phi,g,density);    % generate psi(x) from g(n)
+  M       = length(phi);
+  xAxis   = [0:M-1] * span/(M-1);      % x-axis vector from 0 to span
+  if( dataDump )
+    %data2file(h, g, rQQ, rH,   sprintf("arbitrary_coef%d.dat",span),    sprintf("Arbitrary %d coefficient data file", span));
+    data2plotfile(xAxis, phi,  sprintf('arbitrary_coef%d_phi.dat',span+1),sprintf("Arbitrary %d coefficient scaling function", span+1));
+    data2plotfile(xAxis, psi,  sprintf('arbitrary_coef%d_psi.dat',span+1),sprintf("Arbitrary %d coefficient wavelet function", span+1));
+  end
+  plot(xAxis, phi, xAxis, psi );
+endfunction
+
 %======================================
 % Test Utilities
 %======================================
@@ -922,7 +944,7 @@ iterations = 100;                      % number of iterations
 %endfor
 %demo_Dp(16,N,iterations);
 
-demo_Symmlet_p( 4,N,iterations);
+%demo_Symmlet_p( 4,N,iterations);
 %demo_Symmlet_p( 8,N,iterations);
 %demo_Symmlet_p(12,N,iterations);
 %demo_Symmlet_p(16,N,iterations);
@@ -941,13 +963,23 @@ demo_Symmlet_p( 4,N,iterations);
 %======================================
 % End Processing
 %======================================
-p=4
+%p=4
 %  [h,rQQ,rH] = gen_Dp(p);              % Daubechies-p
 %  [h,rQQ,rH] = gen_Sp(p);              % Symmlets-p
 %  g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
+%h = [1,2,3,4,5,6,7,8]
+h = [1, 1, 2, 3, 5, 8]
+h = [1, 1, 2, 3, 2, 1, 1]
+h = [1, 2, 3, 2, 1]
+h = [1, 1, 2, 3, 3, 2, 1, 1]
+demo_h(h, N, iterations, datadump=1);
+%h = h / sum(h) * sqrt(2)
+%g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
 %  d   = round(N/length(h));            % density=round(samples/unit(1))
 %  phi = gen_phi(h,  iterations,d);     % generate phi(x) from h(n)
+%%plot(phi)
 %  psi = gen_psi(phi,g,d);              % generate psi(x) from g(n)
+%plot(psi)
 %  M   = length(phi);
 %  x = [1:100];
 %  y = Translate(x, 10, 1);
