@@ -112,7 +112,7 @@ endfunction
 % \returns Dilated sequence y
 %----------------------------------------------------------------------------
 function y = DilationEqu( x, h )
-  span    =  length(h)-1;              % support of y(x) = span of h(n)
+  span    = length(h)-1;               % support of y(x) = span of h(n)
   N       = length(x);                 % number of x elements
   density = N / span;                  % N per h element except last
   hu      = upSample(h, density);      % upsample h(n) to match phi(x) density
@@ -972,6 +972,29 @@ h = [1, 1, 2, 3, 5, 8]
 h = [1, 1, 2, 3, 2, 1, 1]
 h = [1, 2, 3, 2, 1]
 h = [1, 1, 2, 3, 3, 2, 1, 1]
+%h = [1, 2, 3, 1, 2, 3]
+%h = [1, 3,2]
+%h = [1, 3/2, 1/2]
+%h = conv([1,1], [1,1/2])
+%h = conv([1,1], [1,-1/2+i/2])
+%h = conv(h, [1,-1/2-i/2])
+h = conv([1,1], [1,2])
+h = conv([1,1], [1,1/128])
+h = [1, 1, 0 , 0, 0]
+h = conv([1,1], [1,128])
+h = [1, 2, 2, 1]
+h = [1, 1, 1, 1]
+h = [1, 1, 1, 1, 1, 1]
+h = [1, 1, 1, 1, 1]
+h = [1, -1,1]
+h = conv(conv([1,1], [1,-0.5+i*sqrt(3)/2]),[1,-0.5-i*sqrt(3)/2])
+h = [1, 0,0,1]
+h=conv(conv([1,0.08],[1,1]),[1,0.08])
+h=hamming(10)
+h=hamming(6)
+h=hamming(4)
+h = 0.25*[1+sqrt(3), 3+sqrt(3), 3-sqrt(3), 1-sqrt(3)]
+%       -     -     -
 demo_h(h, N, iterations, datadump=1);
 %h = h / sum(h) * sqrt(2)
 %g   = h2g_coefs(h);                  % generate wavelet coefficients g(n)
